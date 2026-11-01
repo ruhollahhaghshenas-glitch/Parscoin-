@@ -2,157 +2,108 @@
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Pars Coin Metadata Update</title>
-<script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
-<script src="https://unpkg.com/@ton/core@latest/dist/ton-core.min.js"></script>
-<style>
-body{font-family:Arial,sans-serif;background:#f2f3f5;padding:20px}
-main{max-width:550px;margin:20px auto;background:white;padding:22px;border-radius:15px}
-button{padding:13px;border:0;border-radius:9px;background:#1769aa;color:white;font-size:16px;margin:10px 0}
-code{display:block;direction:ltr;overflow-wrap:anywhere;background:#eee;padding:10px}
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pars Coin</title>
+
+  <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f2f3f5;
+      padding: 20px;
+    }
+    main {
+      max-width: 500px;
+      margin: 30px auto;
+      background: white;
+      padding: 22px;
+      border-radius: 15px;
+    }
+    code {
+      display: block;
+      direction: ltr;
+      overflow-wrap: anywhere;
+      background: #eee;
+      padding: 10px;
+      border-radius: 7px;
+    }
+    #status {
+      margin-top: 20px;
+      line-height: 1.8;
+    }
+  </style>
 </head>
+
 <body>
 <main>
-<h2>Pars Coin - Update Logo</h2>
-<p>قرارداد توکن:</p>
-<code id="master">EQAI8QPV1fyFuUcWqXgdCRCIMzB5V_nRyVDemXzhomx_ivki</code>
+  <h2>Pars Coin - PS</h2>
 
-<p>آدرس کیف پول مدیر مورد انتظار:</p>
-<code>UQCencFjTVcZcqaSIpOMvLX2dckuF5pbUkzUckXvrmaSkXIp</code>
+  <p>قرارداد توکن:</p>
+  <code>EQAI8QPV1fyFuUcWqXgdCRCIMzB5V_nRyVDemXzhomx_ivki</code>
 
-<p>آدرس فایل JSON:</p>
-<code>https://raw.githubusercontent.com/ruhollahhaghshenas-glitch/Parscoin-/refs/heads/main/metadata.json</code>
+  <p>کیف پول مدیر مورد انتظار:</p>
+  <code>UQCencFjTVcZcqaSIpOMvLX2dckuF5pbUkzUckXvrmaSkXIp</code>
 
-<div id="wallet"></div>
-<p id="status">ابتدا کیف پول را متصل کن.</p>
-<button id="send" disabled>درخواست تغییر لوگو</button>
+  <div id="wallet"></div>
 
-<p style="color:red">
-تا زمانی که مقصد و جزئیات تراکنش را بررسی نکرده‌ایم، آن را تأیید نکن.
-</p>
+  <p id="status">لطفاً کیف پول مدیر را متصل کن.</p>
+
+  <p>
+    این صفحه در حال حاضر فقط اتصال کیف پول را بررسی می‌کند
+    و هیچ تراکنشی ارسال نمی‌کند.
+  </p>
 </main>
 
 <script>
-const MASTER =
-"EQAI8QPV1fyFuUcWqXgdCRCIMzB5V_nRyVDemXzhomx_ivki";
-
 const ADMIN =
-"UQCencFjTVcZcqaSIpOMvLX2dckuF5pbUkzUckXvrmaSkXIp";
-
-const URL =
-"https://raw.githubusercontent.com/ruhollahhaghshenas-glitch/Parscoin-/refs/heads/main/metadata.json";
+  "UQCencFjTVcZcqaSIpOMvLX2dckuF5pbUkzUckXvrmaSkXIp";
 
 const statusBox = document.getElementById("status");
-const sendButton = document.getElementById("send");
 
-const connector = new TON_CONNECT_UI.TonConnectUI({
-  manifestUrl: window.location.origin +
-  window.location.pathname.replace(/[^/]*$/, "") +
-  "tonconnect-manifest.json",
+const tonConnectUI = new TON_CONNECT_UI.TonConnectUI({
+  manifestUrl:
+    "https://ruhollahhaghshenas-glitch.github.io/Parscoin-/tonconnect-manifest.json",
   buttonRootId: "wallet"
 });
 
-let wallet = null;
-
-function sameAddress(a,b) {
-  return TON_CORE.Address.parse(a).toRawString() ===
-         TON_CORE.Address.parse(b).toRawString();
+function normalizeAddress(address) {
+  return TON_CONNECT_UI.toUserFriendlyAddress(
+    address,
+    false,
+    false
+  );
 }
 
-function buildPayload() {
-  const metadata = TON_CORE.beginCell()
-    .storeUint(1,8)
-    .storeBuffer(new TextEncoder().encode(URL))
-    .endCell();
-
-  const body = TON_CORE.beginCell()
-    .storeUint(0xcb862902,32)
-    .storeUint(0,64)
-    .storeRef(metadata)
-    .endCell();
-
-  const bytes = body.toBoc();
-  let binary = "";
-  for (const byte of bytes) {
-    binary += String.fromCharCode(byte);
-  }
-  return btoa(binary);
-}
-
-connector.onStatusChange((w) => {
-  wallet = w;
-
-  if (!w || !w.account) {
-    sendButton.disabled = true;
+tonConnectUI.onStatusChange(wallet => {
+  if (!wallet) {
     statusBox.textContent = "کیف پول متصل نیست.";
     return;
   }
 
   try {
-    if (!sameAddress(w.account.address, ADMIN)) {
-      sendButton.disabled = true;
-      statusBox.textContent =
-      "این کیف پول مدیر قرارداد نیست.";
-      return;
-    }
+    const connectedAddress =
+      normalizeAddress(wallet.account.address);
 
-    if (w.account.chain !== "-239") {
-      sendButton.disabled = true;
-      statusBox.textContent =
-      "کیف پول روی شبکه اصلی TON نیست.";
-      return;
-    }
+    const adminAddress =
+      normalizeAddress(ADMIN);
 
-    sendButton.disabled = false;
+    if (
+      connectedAddress.toLowerCase() ===
+      adminAddress.toLowerCase()
+    ) {
+      statusBox.textContent =
+        "کیف پول مدیر با موفقیت شناسایی شد. هنوز هیچ تراکنشی ارسال نشده است.";
+    } else {
+      statusBox.textContent =
+        "این کیف پول، کیف پول مدیر قرارداد نیست. تراکنشی ارسال نمی‌شود.";
+    }
+  } catch (error) {
     statusBox.textContent =
-    "کیف پول مدیر تأیید شد. هنوز تراکنشی ارسال نشده است.";
-
-  } catch(e) {
-    sendButton.disabled = true;
-    statusBox.textContent = "بررسی کیف پول ناموفق بود.";
+      "خطا در بررسی آدرس کیف پول.";
   }
 });
-
-sendButton.onclick = async () => {
-  if (!wallet || !wallet.account) return;
-
-  if (!sameAddress(wallet.account.address, ADMIN)) {
-    alert("کیف پول مدیر نیست.");
-    return;
-  }
-
-  alert(
-    "این درخواست باید قبل از امضا بررسی شود. " +
-    "فعلاً بدون بررسی جزئیات در کیف پول تأیید نکن."
-  );
-
-  sendButton.disabled = true;
-
-  try {
-    const payload = buildPayload();
-
-    await connector.sendTransaction({
-      validUntil: Math.floor(Date.now()/1000)+600,
-      network: "-239",
-      messages: [{
-        address: MASTER,
-        amount: "50000000",
-        payload: payload
-      }]
-    });
-
-    statusBox.textContent =
-    "درخواست به کیف پول ارسال شد. نتیجه را بررسی کن.";
-
-  } catch(e) {
-    statusBox.textContent =
-    "ارسال انجام نشد: " + e.message;
-    sendButton.disabled = false;
-  }
-};
 </script>
 </body>
 </html>
