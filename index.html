@@ -5,69 +5,184 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Pars Coin - PS</title>
+
 <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
+
 <style>
-body{font-family:Arial;background:#f1f3f5;padding:20px;margin:0}
-main{max-width:500px;margin:30px auto;padding:24px;background:white;border-radius:16px}
-h2{text-align:center;color:#1769aa}
-p{line-height:1.8}
-code{display:block;direction:ltr;overflow-wrap:anywhere;background:#eee;padding:12px;border-radius:8px;font-size:12px}
-#wallet{margin-top:20px}
-#status{margin-top:20px;padding:12px;background:#f1f3f5;border-radius:8px;line-height:1.8}
+body {
+  font-family: Arial, sans-serif;
+  background: #f1f3f5;
+  padding: 20px;
+  margin: 0;
+}
+main {
+  max-width: 500px;
+  margin: 30px auto;
+  padding: 24px;
+  background: white;
+  border-radius: 16px;
+}
+h2 {
+  text-align: center;
+  color: #1769aa;
+}
+p {
+  line-height: 1.8;
+}
+code {
+  display: block;
+  direction: ltr;
+  overflow-wrap: anywhere;
+  background: #eee;
+  padding: 12px;
+  border-radius: 8px;
+  font-size: 12px;
+}
+#status {
+  margin-top: 20px;
+  padding: 12px;
+  background: #f1f3f5;
+  border-radius: 8px;
+  line-height: 1.8;
+}
 </style>
 </head>
+
 <body>
 <main>
+
 <h2>Pars Coin - PS</h2>
+
 <p>قرارداد اصلی توکن:</p>
 <code>EQAI8QPV1fyFuUcWqXgdCRCIMzB5V_nRyVDemXzhomx_ivki</code>
-<p>آدرس کیف پول مدیر:</p>
+
+<p>کیف پول مدیر:</p>
 <code>UQCencFjTVcZcqaSIpOMvLX2dckuF5pbUkzUckXvrmaSkXIp</code>
+
 <div id="wallet"></div>
-<p id="status">لطفاً کیف پول خود را متصل کنید.</p>
-<p>این صفحه فقط اتصال کیف پول و آدرس مدیر را بررسی می‌کند. هیچ تراکنشی ارسال نمی‌شود.</p>
+
+<p id="status">لطفاً کیف پول را متصل کنید.</p>
+
+<p>
+این صفحه فقط اتصال کیف پول و شناسایی مدیر را بررسی می‌کند.
+هیچ تراکنشی ارسال نمی‌شود.
+</p>
+
 </main>
 
 <script>
-(function(){
-const ADMIN_RAW="0:9e9dc1634d571972a69222938cbcb5f675c92e179a5b524cd47245efae669291";
-const MANIFEST="https://ruhollahhaghshenas-glitch.github.io/Parscoin-/tonconnect-manifest.json";
-const statusBox=document.getElementById("status");
+(function() {
 
-if(!window.TON_CONNECT_UI){
-statusBox.textContent="کتابخانه اتصال بارگذاری نشد. صفحه را دوباره باز کنید.";
-return;
+const ADMIN =
+"0:9e9dc1634d571972a69222938cbcb5f675c92e179a5b524cd47245efae669291";
+
+const MANIFEST =
+"https://ruhollahhaghshenas-glitch.github.io/Parscoin-/tonconnect-manifest.json";
+
+const statusBox = document.getElementById("status");
+
+function toRawAddress(address) {
+
+  if (typeof address !== "string") {
+    throw new Error("آدرس کیف پول دریافت نشد.");
+  }
+
+  address = address.trim();
+
+  // فرمت خام TON
+  if (/^-?\d+:[0-9a-fA-F]{64}$/.test(address)) {
+    const parts = address.split(":");
+    return Number(parts[0]) + ":" + parts[1].toLowerCase();
+  }
+
+  // فرمت Friendly TON
+  let base64 = address
+    .replace(/-/g, "+")
+    .replace(/_/g, "/");
+
+  while (base64.length % 4 !== 0) {
+    base64 += "=";
+  }
+
+  const binary = atob(base64);
+
+  if (binary.length !== 36) {
+    throw new Error("طول آدرس کیف پول معتبر نیست.");
+  }
+
+  const workchain = binary.charCodeAt(1);
+  const signedWorkchain =
+    workchain > 127 ? workchain - 256 : workchain;
+
+  let hash = "";
+
+  for (let i = 2; i < 34; i++) {
+    hash += binary.charCodeAt(i)
+      .toString(16)
+      .padStart(2, "0");
+  }
+
+  return signedWorkchain + ":" + hash;
 }
 
-const tonConnectUI=new TON_CONNECT_UI.TonConnectUI({
-manifestUrl:MANIFEST,
-buttonRootId:"wallet"
-});
-
-function rawAddress(address){
-const parts=address.split(":");
-if(parts.length!==2) throw new Error("فرمت آدرس نامعتبر است.");
-return parts[0].toLowerCase()+":"+parts[1].toLowerCase();
+if (!window.TON_CONNECT_UI) {
+  statusBox.textContent =
+    "کتابخانه TON Connect بارگذاری نشده است. اینترنت را بررسی کنید.";
+  return;
 }
 
-tonConnectUI.onStatusChange(function(wallet){
-if(!wallet||!wallet.account){
-statusBox.textContent="کیف پول متصل نیست.";
-return;
+try {
+
+  const tonConnectUI = new TON_CONNECT_UI.TonConnectUI({
+    manifestUrl: MANIFEST,
+    buttonRootId: "wallet"
+  });
+
+  tonConnectUI.onStatusChange(function(wallet) {
+
+    if (!wallet || !wallet.account) {
+      statusBox.textContent = "کیف پول متصل نیست.";
+      return;
+    }
+
+    try {
+
+      const connected =
+        toRawAddress(wallet.account.address);
+
+      const admin =
+        toRawAddress(ADMIN);
+
+      if (connected === admin) {
+
+        statusBox.textContent =
+          "کیف پول مدیر با موفقیت شناسایی شد. هیچ تراکنشی ارسال نشده است.";
+
+      } else {
+
+        statusBox.textContent =
+          "کیف پول متصل شد، اما آدرس آن مدیر قرارداد نیست. هیچ تراکنشی ارسال نشده است.";
+
+      }
+
+    } catch(error) {
+
+      statusBox.textContent =
+        "خطای بررسی آدرس: " + error.message;
+
+    }
+
+  });
+
+} catch(error) {
+
+  statusBox.textContent =
+    "خطا در راه‌اندازی اتصال: " + error.message;
+
 }
-try{
-const connected=rawAddress(wallet.account.address);
-const admin=rawAddress(ADMIN_RAW);
-if(connected===admin){
-statusBox.textContent="کیف پول مدیر شناسایی شد. هیچ تراکنشی ارسال نشده است.";
-}else{
-statusBox.textContent="کیف پول متصل شد، اما مدیر قرارداد نیست. هیچ تراکنشی ارسال نشده است.";
-}
-}catch(error){
-statusBox.textContent="خطا در بررسی آدرس کیف پول: "+error.message;
-}
-});
+
 })();
 </script>
+
 </body>
 </html>
